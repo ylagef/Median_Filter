@@ -67,7 +67,7 @@ class MyThread implements Runnable {
 
         while (numRows >= 1) {
             for (int c = startC; c < MyProblem.matrix.getColsSize(); c++) {
-                MyProblem.convertedMatrix[startR][c] = (new Cell(startR, c)).getMedium() + (200 * Integer.parseInt(Thread.currentThread().getName())); //TODO quit this
+                MyProblem.convertedMatrix[startR][c] = (new Cell(startR, c)).getMedium();
             }
             startR++;
             startC = 0;
@@ -75,7 +75,7 @@ class MyThread implements Runnable {
         }
 
         for (int c = 0; c <= endC; c++) {
-            MyProblem.convertedMatrix[endR][c] = (new Cell(endR, c)).getMedium() + (200 * Integer.parseInt(Thread.currentThread().getName())); //TODO quit this
+            MyProblem.convertedMatrix[endR][c] = (new Cell(endR, c)).getMedium();
         }
     }
 }
@@ -142,17 +142,15 @@ class MyMatrix {
 
         //Assigning cells to threads
         int id = 0;
-        int it = 1, endR = 0, endC = 0, startR = 0, startC = 0;
+        int cells = 1, endR = 0, endC = 0, startR = 0, startC = 0;
         for (int x = 0; x < cellsQuantity; x++) {
             if (MyProblem.threadList.size() == MyProblem.numThreads - 1) {
-                System.out.println("ID" + id + " " + startR + startC + "." + (getRowsSize() - 1) + (getColsSize() - 1));
                 MyProblem.threadList.add(id, new Thread(new MyThread(startR, startC, getRowsSize() - 1, getColsSize() - 1), Integer.toString(id)));
                 MyProblem.threadList.get(id).start();
                 break;
             }
 
-            if (it == cellsPerThread) {
-                System.out.println("ID" + id + " " + startR + startC + "." + endR + endC);
+            if (cells == cellsPerThread) {
                 MyProblem.threadList.add(id, new Thread(new MyThread(startR, startC, endR, endC), Integer.toString(id)));
                 MyProblem.threadList.get(id++).start();
                 if (endC == getColsSize() - 1) {
@@ -162,17 +160,16 @@ class MyMatrix {
                     startR = endR;
                     startC = endC + 1;
                 }
-                it = 0;
+                cells = 0;
             }
 
-            it++;
+            cells++;
             endC++; //Next col
 
             if (endC == getColsSize()) {
                 endC = 0; //Col 0
                 endR++; //Next row
             }
-
         }
     }
 
@@ -194,7 +191,7 @@ class MyMatrix {
 
         for (int[] row : matrix) {
             for (int cell : row) {
-                toPrint.append(cell).append("\t");
+                toPrint.append(cell).append("\t\t ");
             }
             toPrint.append("\n");
         }
