@@ -13,29 +13,32 @@ public class MyProblem {
     public static void main(String[] args) {
         numThreads = Integer.parseInt(args[0]);
 
-        matrix = new MyMatrix(3, 3); //Generates new matrix
-        convertedMatrix = new double[3][3]; //Reserves space
+        int numRows = 6;
+        int numCols = 4;
+
+        matrix = new MyMatrix(numRows, numCols); //Generates new matrix
+        convertedMatrix = new double[numRows][numCols]; //Reserves space
         matrix.constantFill(2); //Fill matrix
         System.out.println(matrix.toString());
 
-
-        //Do the median filter
+        //Do the median filter with threads
         matrix.medianFilter();
-        for (double[] d : convertedMatrix) {
-            for (Double d1 : d) {
-                System.out.print(d1 + " \t");
-            }
-            System.out.println();
-        }
 
         //Check threads end
         for (Thread t : threadList) { //For each thread, wait until is ended.
             try {
                 t.join(); //join() is a function that waits until Thread t is finished.
-                //System.out.println("T" + t.getName() + outputs.get(Integer.parseInt(t.getName())).toString());
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+        }
+
+        //Print final matrix
+        for (double[] d : convertedMatrix) {
+            for (Double d1 : d) {
+                System.out.print(d1 + " \t");
+            }
+            System.out.println();
         }
         //Then, this foreach ends when every thread is ended.
 
@@ -45,30 +48,35 @@ public class MyProblem {
 }
 
 class MyThread implements Runnable {
-    private ThreadLocal<Cell> startCell = new ThreadLocal<>();
-    private ThreadLocal<Cell> endCell = new ThreadLocal<>();
+    private Integer startR;
+    private Integer startC;
+    private Integer endR;
+    private Integer endC;
 
-    public MyThread(Cell startCell, Cell endCell) {
-        this.startCell.set(startCell);
-        this.endCell.set(endCell);
+    MyThread(int sr, int sc, int er, int ec) {
+        this.startR = sr;
+        this.startC = sc;
+        this.endR = er;
+        this.endC = ec;
     }
 
     //Code going to be executed by the thread.
     @Override
     public void run() {
-        double[][] auxMatrix = new double[MyProblem.matrix.getRowsSize()][MyProblem.matrix.getColsSize()]; // Create auxiliary matrix
-        for (int r = startCell.get().getR(); r < endCell.get().getR(); r++) {
-            for (int c = startCell.get().getC(); c < endCell.get().getC(); c++) {
-                double mediumValue;
+        int numRows = endR - startR;
 
-                Cell auxCell = new Cell(r, c);
-
-                mediumValue = auxCell.getMedium();
-
-                auxMatrix[r][c] = mediumValue;
+        while (numRows >= 1) {
+            for (int c = startC; c < MyProblem.matrix.getColsSize(); c++) {
+                MyProblem.convertedMatrix[startR][c] = (new Cell(startR, c)).getMedium() + (200 * Integer.parseInt(Thread.currentThread().getName())); //TODO quit this
             }
+            startR++;
+            startC = 0;
+            numRows--;
         }
-        MyProblem.convertedMatrix = auxMatrix;
+
+        for (int c = 0; c <= endC; c++) {
+            MyProblem.convertedMatrix[endR][c] = (new Cell(endR, c)).getMedium() + (200 * Integer.parseInt(Thread.currentThread().getName())); //TODO quit this
+        }
     }
 }
 
@@ -118,51 +126,54 @@ class MyMatrix {
         }
     }
 
-    public double[][] medianFilter() {
-        System.out.println("---------------------\n");
+    public void medianFilter() {
+        System.out.println("- - - - - - - - - - - - - - - - - - - - -\n");
 
         int cellsQuantity = this.getRowsSize() * this.getColsSize();
-        int cellsPerThread = cellsQuantity / MyProblem.numThreads;
 
-        int sr = 0, sc = 0, er, ec;
+        int cellsPerThread;
+        if (MyProblem.numThreads >= cellsQuantity) {
+            //If more threads than cells, just one thread per cell.
+            cellsPerThread = 1;
+            MyProblem.numThreads = cellsQuantity;
+        } else {
+            cellsPerThread = cellsQuantity / MyProblem.numThreads;
+        }
+
+        //Assigning cells to threads
         int id = 0;
-        for (int assigned = 0; assigned < cellsQuantity; assigned += cellsPerThread) {
-            er = (assigned + cellsPerThread) % this.getColsSize();
-            ec = assigned + (cellsPerThread - (er * this.getColsSize()))-1;
-
-            MyProblem.threadList.add(id, new Thread(new MyThread(new Cell(sr, sc), new Cell(er, ec)), Integer.toString(id)));
-            MyProblem.threadList.get(id++).start();
-
-            if (ec != this.getColsSize()-1) {
-                sr = er;
-                sc = ec + 1;
-            } else {
-                sr = er + 1;
-                sc = 0;
+        int it = 1, endR = 0, endC = 0, startR = 0, startC = 0;
+        for (int x = 0; x < cellsQuantity; x++) {
+            if (MyProblem.threadList.size() == MyProblem.numThreads - 1) {
+                System.out.println("ID" + id + " " + startR + startC + "." + (getRowsSize() - 1) + (getColsSize() - 1));
+                MyProblem.threadList.add(id, new Thread(new MyThread(startR, startC, getRowsSize() - 1, getColsSize() - 1), Integer.toString(id)));
+                MyProblem.threadList.get(id).start();
+                break;
             }
-        }
 
-        //Create and start Threads. As much as selected by the argument value.
-        for (int i = 0; i < MyProblem.numThreads; ++i) {
-
-            MyProblem.threadList.add(i, new Thread(new MyThread(new Cell(1, 2), new Cell(1, 2)), Integer.toString(i)));
-            MyProblem.threadList.get(i).start();
-        }
-
-
-        double[][] auxMatrix = new double[this.getRowsSize()][this.getColsSize()]; // Create auxiliary matrix
-        for (int r = 0; r < this.getRowsSize(); r++) {
-            for (int c = 0; c < this.getColsSize(); c++) {
-                double mediumValue;
-
-                Cell auxCell = new Cell(r, c);
-
-                mediumValue = auxCell.getMedium();
-
-                auxMatrix[r][c] = mediumValue;
+            if (it == cellsPerThread) {
+                System.out.println("ID" + id + " " + startR + startC + "." + endR + endC);
+                MyProblem.threadList.add(id, new Thread(new MyThread(startR, startC, endR, endC), Integer.toString(id)));
+                MyProblem.threadList.get(id++).start();
+                if (endC == getColsSize() - 1) {
+                    startR = endR + 1;
+                    startC = 0;
+                } else {
+                    startR = endR;
+                    startC = endC + 1;
+                }
+                it = 0;
             }
+
+            it++;
+            endC++; //Next col
+
+            if (endC == getColsSize()) {
+                endC = 0; //Col 0
+                endR++; //Next row
+            }
+
         }
-        return auxMatrix;
     }
 
     public int getValue(int r, int c) {
