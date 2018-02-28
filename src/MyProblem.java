@@ -18,8 +18,10 @@ public class MyProblem {
 
         matrix = new MyMatrix(numRows, numCols); //Generates new matrix
         convertedMatrix = new double[numRows][numCols]; //Reserves space
-        matrix.constantFill(2); //Fill matrix
-        System.out.println(matrix.toString());
+
+        matrix.constantFill(2); //Constant fill of matrix
+        //matrix.randomFill(50); //Random fill of matrix
+        System.out.println(matrix.toString()); //Print matrix
 
         //Do the median filter with threads
         matrix.medianFilter();
@@ -42,8 +44,8 @@ public class MyProblem {
         }
         //Then, this foreach ends when every thread is ended.
 
-        //Print final message
-        System.out.println("\nProgram of exercise 3 has terminated.");
+        System.out.println("\nProgram of exercise 3 has terminated."); //Print final message
+
     }
 }
 
@@ -80,7 +82,7 @@ class MyThread implements Runnable {
     }
 }
 
-//Class used for storing each Thread timing.
+//Class used for storing each Thread timing
 class Output {
     private long sentInterrupt, interrupted;
 
