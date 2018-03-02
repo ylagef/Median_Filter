@@ -4,27 +4,36 @@ import java.util.List;
 import java.util.Random;
 
 public class MyProblem {
-    public static HashMap<Integer, Output> outputs = new HashMap<>(); //Global HashMap with the Output objects.
     public static MyMatrix matrix;
     public static double[][] convertedMatrix;
-    static int numThreads;
+
+    static int numThreads, filter;
+    public static boolean byCells;
+
+    public static HashMap<Integer, Output> outputs = new HashMap<>(); //Global HashMap with the Output objects.
     public static List<Thread> threadList = new ArrayList<>(numThreads); //ArrayList for the created Threads.
 
-    public static void main(String[] args) {
-        numThreads = Integer.parseInt(args[0]);
 
-        int numRows = 6;
-        int numCols = 4;
+    public static void main(String[] args) {
+        long initTime = System.currentTimeMillis();
+        numThreads = Integer.parseInt(args[0]);
+        if (Integer.parseInt(args[1]) == 1) {
+            byCells = true;
+        }
+
+        int numRows = Integer.parseInt(args[2]);
+        int numCols = Integer.parseInt(args[3]);
 
         matrix = new MyMatrix(numRows, numCols); //Generates new matrix
         convertedMatrix = new double[numRows][numCols]; //Reserves space
 
-        matrix.constantFill(2); //Constant fill of matrix
-        //matrix.randomFill(50); //Random fill of matrix
-        System.out.println(matrix.toString()); //Print matrix
+        //matrix.constantFill(1); //Constant fill of matrix
+        matrix.randomFill(1000); //Random fill of matrix
+        //System.out.println(matrix.toString()); //Print matrix
 
         //Do the median filter with threads
-        matrix.medianFilter();
+        filter = 2;
+        matrix.medianFilter(); // Filter size on argument
 
         //Check threads end
         for (Thread t : threadList) { //For each thread, wait until is ended.
@@ -35,6 +44,7 @@ public class MyProblem {
             }
         }
 
+/*
         //Print final matrix
         for (double[] d : convertedMatrix) {
             for (Double d1 : d) {
@@ -45,7 +55,9 @@ public class MyProblem {
         //Then, this foreach ends when every thread is ended.
 
         System.out.println("\nProgram of exercise 3 has terminated."); //Print final message
-
+*/
+        long endTime = System.currentTimeMillis();
+        System.out.println(endTime - initTime);
     }
 }
 
@@ -69,7 +81,7 @@ class MyThread implements Runnable {
 
         while (numRows >= 1) {
             for (int c = startC; c < MyProblem.matrix.getColsSize(); c++) {
-                MyProblem.convertedMatrix[startR][c] = (new Cell(startR, c)).getMedium();
+                MyProblem.convertedMatrix[startR][c] = (new Cell(startR, c)).getMedianFilter();
             }
             startR++;
             startC = 0;
@@ -77,7 +89,7 @@ class MyThread implements Runnable {
         }
 
         for (int c = 0; c <= endC; c++) {
-            MyProblem.convertedMatrix[endR][c] = (new Cell(endR, c)).getMedium();
+            MyProblem.convertedMatrix[endR][c] = (new Cell(endR, c)).getMedianFilter();
         }
     }
 }
@@ -129,50 +141,80 @@ class MyMatrix {
     }
 
     public void medianFilter() {
-        System.out.println("- - - - - - - - - - - - - - - - - - - - -\n");
+        //System.out.println("- - - - - - - - - - - - - - - - - - - - -\n");
 
         int cellsQuantity = this.getRowsSize() * this.getColsSize();
 
-        int cellsPerThread;
-        if (MyProblem.numThreads >= cellsQuantity) {
-            //If more threads than cells, just one thread per cell.
-            cellsPerThread = 1;
-            MyProblem.numThreads = cellsQuantity;
-        } else {
-            cellsPerThread = cellsQuantity / MyProblem.numThreads;
-        }
-
-        //Assigning cells to threads
-        int id = 0;
-        int cells = 1, endR = 0, endC = 0, startR = 0, startC = 0;
-        for (int x = 0; x < cellsQuantity; x++) {
-            if (MyProblem.threadList.size() == MyProblem.numThreads - 1) {
-                MyProblem.threadList.add(id, new Thread(new MyThread(startR, startC, getRowsSize() - 1, getColsSize() - 1), Integer.toString(id)));
-                MyProblem.threadList.get(id).start();
-                break;
+        if (MyProblem.byCells) {
+            long init_assignation = System.currentTimeMillis();
+            int cellsPerThread;
+            if (MyProblem.numThreads >= cellsQuantity) {
+                //If more threads than cells, just one thread per cell.
+                cellsPerThread = 1;
+                MyProblem.numThreads = cellsQuantity;
+            } else {
+                cellsPerThread = cellsQuantity / MyProblem.numThreads;
             }
 
-            if (cells == cellsPerThread) {
-                MyProblem.threadList.add(id, new Thread(new MyThread(startR, startC, endR, endC), Integer.toString(id)));
-                MyProblem.threadList.get(id++).start();
-                if (endC == getColsSize() - 1) {
-                    startR = endR + 1;
-                    startC = 0;
-                } else {
-                    startR = endR;
-                    startC = endC + 1;
+            //Assigning cells to threads. By blocks.
+            int id = 0;
+            int cells = 1, endR = 0, endC = 0, startR = 0, startC = 0;
+            for (int x = 0; x < cellsQuantity; x++) {
+                if (MyProblem.threadList.size() == MyProblem.numThreads - 1) {
+                    MyProblem.threadList.add(id, new Thread(new MyThread(startR, startC, getRowsSize() - 1, getColsSize() - 1), Integer.toString(id)));
+                    MyProblem.threadList.get(id).start();
+                    break;
                 }
-                cells = 0;
+
+                if (cells == cellsPerThread) {
+                    MyProblem.threadList.add(id, new Thread(new MyThread(startR, startC, endR, endC), Integer.toString(id)));
+                    MyProblem.threadList.get(id++).start();
+                    if (endC == getColsSize() - 1) {
+                        startR = endR + 1;
+                        startC = 0;
+                    } else {
+                        startR = endR;
+                        startC = endC + 1;
+                    }
+                    cells = 0;
+                }
+
+                cells++;
+                endC++; //Next col
+
+                if (endC == getColsSize()) {
+                    endC = 0; //Col 0
+                    endR++; //Next row
+                }
+            }
+            long taken = System.currentTimeMillis() - init_assignation;
+            System.out.println("Time_assignation = " + taken);
+        } else {
+            long init_assignation = System.currentTimeMillis();
+            int rowsPerThread;
+            if (getRowsSize() / MyProblem.numThreads < 1) {
+                rowsPerThread = 1;
+            } else {
+                rowsPerThread = getRowsSize() / MyProblem.numThreads;
             }
 
-            cells++;
-            endC++; //Next col
+            int id = 0, startRow = 0, endRow = -1;
+            for (int r = 0; r < getRowsSize() / rowsPerThread; r++) {
+                endRow += rowsPerThread;
 
-            if (endC == getColsSize()) {
-                endC = 0; //Col 0
-                endR++; //Next row
+                if (r == getRowsSize() / rowsPerThread - 1) {
+                    MyProblem.threadList.add(id, new Thread(new MyThread(startRow, 0, getRowsSize() - 1, getColsSize() - 1), Integer.toString(id)));
+                } else {
+                    MyProblem.threadList.add(id, new Thread(new MyThread(startRow, 0, endRow, getColsSize() - 1), Integer.toString(id)));
+                }
+
+                MyProblem.threadList.get(id++).start();
+                startRow = endRow + 1;
             }
+            long taken = System.currentTimeMillis() - init_assignation;
+            System.out.println("Time_assignation = " + taken);
         }
+
     }
 
     public int getValue(int r, int c) {
@@ -210,109 +252,64 @@ class Cell {
         this.c = c;
     }
 
-    public double getMedium() {
+    public double getMedianFilter() {
         int colsSize = MyProblem.matrix.getColsSize();
         int rowsSize = MyProblem.matrix.getRowsSize();
 
-        int actual = MyProblem.matrix.getValue(r, c);
-
-        int top, bottom, left, right, topLeft, topRight, bottomLeft, bottomRight;
-
-        // I KNOW that this way is not optimal. Otherwise it was a secure way for checking all chances.
-        if (r == 0) {//First row
-            bottom = MyProblem.matrix.getValue(r + 1, c);
-            top = MyProblem.matrix.getValue(r + 1, c);
-
-            if (c == 0) {//First col
-                left = MyProblem.matrix.getValue(r, c + 1);
-                right = MyProblem.matrix.getValue(r, c + 1);
-                topLeft = MyProblem.matrix.getValue(r + 1, c + 1);
-                topRight = MyProblem.matrix.getValue(r + 1, c + 1);
-                bottomLeft = MyProblem.matrix.getValue(r + 1, c + 1);
-                bottomRight = MyProblem.matrix.getValue(r + 1, c + 1);
-            } else if (c == colsSize - 1) {//Last col
-                left = MyProblem.matrix.getValue(r, c - 1);
-                right = MyProblem.matrix.getValue(r, c - 1);
-                topLeft = MyProblem.matrix.getValue(r + 1, c - 1);
-                topRight = MyProblem.matrix.getValue(r + 1, c - 1);
-                bottomLeft = MyProblem.matrix.getValue(r + 1, c - 1);
-                bottomRight = MyProblem.matrix.getValue(r + 1, c - 1);
-            } else {//From 1 to last-1 col
-                left = MyProblem.matrix.getValue(r, c - 1);
-                right = MyProblem.matrix.getValue(r, c + 1);
-                topLeft = MyProblem.matrix.getValue(r + 1, c - 1);
-                topRight = MyProblem.matrix.getValue(r + 1, c + 1);
-                bottomLeft = MyProblem.matrix.getValue(r + 1, c - 1);
-                bottomRight = MyProblem.matrix.getValue(r + 1, c + 1);
-            }
-        } else if (r == rowsSize - 1) {//Last row
-            top = MyProblem.matrix.getValue(r - 1, c);
-            bottom = MyProblem.matrix.getValue(r - 1, c);
-
-            if (c == 0) {//First col
-                left = MyProblem.matrix.getValue(r, c + 1);
-                right = MyProblem.matrix.getValue(r, c + 1);
-                topLeft = MyProblem.matrix.getValue(r - 1, c + 1);
-                topRight = MyProblem.matrix.getValue(r - 1, c + 1);
-                bottomLeft = MyProblem.matrix.getValue(r - 1, c + 1);
-                bottomRight = MyProblem.matrix.getValue(r - 1, c + 1);
-            } else if (c == colsSize - 1) {//Last col
-                left = MyProblem.matrix.getValue(r, c - 1);
-                right = MyProblem.matrix.getValue(r, c - 1);
-                topLeft = MyProblem.matrix.getValue(r - 1, c - 1);
-                topRight = MyProblem.matrix.getValue(r - 1, c - 1);
-                bottomLeft = MyProblem.matrix.getValue(r - 1, c - 1);
-                bottomRight = MyProblem.matrix.getValue(r - 1, c - 1);
-            } else {//From 1 to last-1 col
-                left = MyProblem.matrix.getValue(r, c - 1);
-                right = MyProblem.matrix.getValue(r, c + 1);
-                topLeft = MyProblem.matrix.getValue(r - 1, c - 1);
-                topRight = MyProblem.matrix.getValue(r - 1, c + 1);
-                bottomLeft = MyProblem.matrix.getValue(r - 1, c - 1);
-                bottomRight = MyProblem.matrix.getValue(r - 1, c + 1);
-            }
-        } else {//From 1 to last-1 row
-            if (c == 0) {//First col
-                top = MyProblem.matrix.getValue(r - 1, c);
-                bottom = MyProblem.matrix.getValue(r + 1, c);
-                left = MyProblem.matrix.getValue(r, c + 1);
-                right = MyProblem.matrix.getValue(r, c + 1);
-                topLeft = MyProblem.matrix.getValue(r - 1, c + 1);
-                topRight = MyProblem.matrix.getValue(r - 1, c + 1);
-                bottomLeft = MyProblem.matrix.getValue(r + 1, c + 1);
-                bottomRight = MyProblem.matrix.getValue(r + 1, c + 1);
-            } else if (c == colsSize - 1) {//Last col
-                top = MyProblem.matrix.getValue(r - 1, c);
-                bottom = MyProblem.matrix.getValue(r + 1, c);
-                left = MyProblem.matrix.getValue(r, c - 1);
-                right = MyProblem.matrix.getValue(r, c - 1);
-                topLeft = MyProblem.matrix.getValue(r - 1, c - 1);
-                topRight = MyProblem.matrix.getValue(r - 1, c - 1);
-                bottomLeft = MyProblem.matrix.getValue(r + 1, c - 1);
-                bottomRight = MyProblem.matrix.getValue(r + 1, c - 1);
-            } else {//From 1 to last-1 col
-                top = MyProblem.matrix.getValue(r - 1, c);
-                bottom = MyProblem.matrix.getValue(r + 1, c);
-                left = MyProblem.matrix.getValue(r, c - 1);
-                right = MyProblem.matrix.getValue(r, c + 1);
-                topLeft = MyProblem.matrix.getValue(r - 1, c - 1);
-                topRight = MyProblem.matrix.getValue(r - 1, c + 1);
-                bottomLeft = MyProblem.matrix.getValue(r + 1, c - 1);
-                bottomRight = MyProblem.matrix.getValue(r + 1, c + 1);
+        double total = 0;
+        for (int row = this.r - MyProblem.filter; row <= this.r + MyProblem.filter; row++) {
+            for (int col = this.c - MyProblem.filter; col <= this.c + MyProblem.filter; col++) {
+                if (row < 0 || row >= rowsSize || col < 0 || col >= colsSize) {
+                    Cell mirror = new Cell(row, col).getMirror(this);
+                    total += MyProblem.matrix.getValue(mirror.getR(), mirror.getC());
+                } else {
+                    total += MyProblem.matrix.getValue(row, col);
+                }
             }
         }
 
-        double medium = (actual + top + bottom + left + right + topLeft + topRight + bottomLeft + bottomRight) / 8.0;
-        medium = Math.floor(medium * 100) / 100; //For having just 2 decimals
+        double divider = Math.pow(2 * MyProblem.filter + 1, 2);
 
-        return medium;
+        return Math.ceil((total / divider) * 100) / 100;
     }
 
-    public int getR() {
+    private Cell getMirror(Cell actual) {
+        Cell toret = new Cell(0, 0);
+
+        if (r < 0) {
+            toret.setR(-r);
+        } else if (r < MyProblem.matrix.getRowsSize()) {
+            toret.setR(r);
+        } else {
+            int rOut = actual.getR() - r + actual.getR();
+            toret.setR(rOut);
+        }
+
+        if (c < 0) {
+            toret.setC(-c);
+        } else if (c < MyProblem.matrix.getColsSize()) {
+            toret.setC(c);
+        } else {
+            int cOut = actual.getC() - c + actual.getC();
+            toret.setC(cOut);
+        }
+
+        return toret;
+    }
+
+    private int getR() {
         return r;
     }
 
-    public int getC() {
+    private int getC() {
         return c;
+    }
+
+    private void setR(int r) {
+        this.r = r;
+    }
+
+    private void setC(int c) {
+        this.c = c;
     }
 }
