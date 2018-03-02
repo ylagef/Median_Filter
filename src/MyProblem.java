@@ -44,7 +44,7 @@ public class MyProblem {
             }
         }
 
-/*
+        /*
         //Print final matrix
         for (double[] d : convertedMatrix) {
             for (Double d1 : d) {
@@ -55,7 +55,8 @@ public class MyProblem {
         //Then, this foreach ends when every thread is ended.
 
         System.out.println("\nProgram of exercise 3 has terminated."); //Print final message
-*/
+        */
+
         long endTime = System.currentTimeMillis();
         System.out.println(endTime - initTime);
     }
@@ -159,16 +160,16 @@ class MyMatrix {
             //Assigning cells to threads. By blocks.
             int id = 0;
             int cells = 1, endR = 0, endC = 0, startR = 0, startC = 0;
-            for (int x = 0; x < cellsQuantity; x++) {
-                if (MyProblem.threadList.size() == MyProblem.numThreads - 1) {
-                    MyProblem.threadList.add(id, new Thread(new MyThread(startR, startC, getRowsSize() - 1, getColsSize() - 1), Integer.toString(id)));
-                    MyProblem.threadList.get(id).start();
-                    break;
-                }
+            int[][] times = new int[MyProblem.numThreads][4];
 
+            while (id != MyProblem.numThreads - 1) {
                 if (cells == cellsPerThread) {
-                    MyProblem.threadList.add(id, new Thread(new MyThread(startR, startC, endR, endC), Integer.toString(id)));
-                    MyProblem.threadList.get(id++).start();
+                    times[id][0] = startR;
+                    times[id][1] = startC;
+                    times[id][2] = endR;
+                    times[id][3] = endC;
+                    id++;
+
                     if (endC == getColsSize() - 1) {
                         startR = endR + 1;
                         startC = 0;
@@ -176,6 +177,7 @@ class MyMatrix {
                         startR = endR;
                         startC = endC + 1;
                     }
+
                     cells = 0;
                 }
 
@@ -187,6 +189,19 @@ class MyMatrix {
                     endR++; //Next row
                 }
             }
+
+            times[id][0] = startR;
+            times[id][1] = startC;
+            times[id][2] = getRowsSize() - 1;
+            times[id][3] = getColsSize() - 1;
+
+            int threadId = 0;
+            for (int[] i : times) {
+                System.out.println(threadId + " " + i[0] + "." + i[1] + "|" + i[2] + "." + i[3]);
+                MyProblem.threadList.add(threadId, new Thread(new MyThread(i[0], i[1], i[2], i[3]), Integer.toString(id)));
+                MyProblem.threadList.get(threadId++).start();
+            }
+
             long taken = System.currentTimeMillis() - init_assignation;
             System.out.println("Time_assignation = " + taken);
         } else {
@@ -203,8 +218,10 @@ class MyMatrix {
                 endRow += rowsPerThread;
 
                 if (r == getRowsSize() / rowsPerThread - 1) {
+                    System.out.println(id + " " + startRow + "." + 0 + "|" + (getRowsSize() - 1) + "." + (getColsSize() - 1));
                     MyProblem.threadList.add(id, new Thread(new MyThread(startRow, 0, getRowsSize() - 1, getColsSize() - 1), Integer.toString(id)));
                 } else {
+                    System.out.println(id + " " + startRow + "." + 0 + "|" + endRow + "." + (getColsSize() - 1));
                     MyProblem.threadList.add(id, new Thread(new MyThread(startRow, 0, endRow, getColsSize() - 1), Integer.toString(id)));
                 }
 
