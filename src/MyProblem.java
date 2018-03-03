@@ -159,37 +159,40 @@ class MyMatrix {
 
             //Assigning cells to threads. By blocks.
             int id = 0;
-            int cells = 1, endR = 0, endC = 0, startR = 0, startC = 0;
+            int endR = 0, endC, startR = 0, startC = 0;
             int[][] times = new int[MyProblem.numThreads][4];
 
-            while (id != MyProblem.numThreads - 1) {
-                if (cells == cellsPerThread) {
-                    times[id][0] = startR;
-                    times[id][1] = startC;
-                    times[id][2] = endR;
-                    times[id][3] = endC;
-                    id++;
-
-                    if (endC == getColsSize() - 1) {
-                        startR = endR + 1;
-                        startC = 0;
+            while (id != MyProblem.numThreads - 1) { //While not last thread.
+                if (startC + cellsPerThread > getColsSize()) { // If doesnt fit on actual row
+                    int cellsForAssign = cellsPerThread - (getColsSize() - startC);
+                    int fullRows = cellsForAssign / getColsSize();
+                    cellsForAssign = cellsForAssign - getColsSize() * fullRows;
+                    if (cellsForAssign == 0) {
+                        endC = getColsSize() - 1;
+                        endR = startR + fullRows;
                     } else {
-                        startR = endR;
-                        startC = endC + 1;
+                        endC = cellsForAssign - 1;
+                        endR = startR + fullRows + 1;
                     }
+                } else endC = startC + cellsPerThread;
 
-                    cells = 0;
+                times[id][0] = startR;
+                times[id][1] = startC;
+                times[id][2] = endR;
+                times[id][3] = endC;
+
+                if (endC == getColsSize() - 1) {
+                    startC = 0;
+                    startR = endR + 1;
+                } else {
+                    startC = endC + 1;
+                    startR = endR;
                 }
 
-                cells++;
-                endC++; //Next col
-
-                if (endC == getColsSize()) {
-                    endC = 0; //Col 0
-                    endR++; //Next row
-                }
+                id++;
             }
 
+            // Last thread goes until the end
             times[id][0] = startR;
             times[id][1] = startC;
             times[id][2] = getRowsSize() - 1;
@@ -204,20 +207,23 @@ class MyMatrix {
 
             long taken = System.currentTimeMillis() - init_assignation;
             System.out.println("Time_assignation = " + taken);
-        } else {
+        } else { // TODO check why is creating 6 threads!?
             long init_assignation = System.currentTimeMillis();
-            int rowsPerThread;
-            if (getRowsSize() / MyProblem.numThreads < 1) {
+
+            int rowsPerThread, usableThreads;
+            if (getRowsSize() <= MyProblem.numThreads) {
                 rowsPerThread = 1;
+                usableThreads = getRowsSize();
             } else {
                 rowsPerThread = getRowsSize() / MyProblem.numThreads;
+                usableThreads = MyProblem.numThreads;
             }
 
             int id = 0, startRow = 0, endRow = -1;
-            for (int r = 0; r < getRowsSize() / rowsPerThread; r++) {
+            for (int t = 0; t < usableThreads; t++) {
                 endRow += rowsPerThread;
 
-                if (r == getRowsSize() / rowsPerThread - 1) {
+                if (t == usableThreads - 1) {
                     System.out.println(id + " " + startRow + "." + 0 + "|" + (getRowsSize() - 1) + "." + (getColsSize() - 1));
                     MyProblem.threadList.add(id, new Thread(new MyThread(startRow, 0, getRowsSize() - 1, getColsSize() - 1), Integer.toString(id)));
                 } else {
@@ -231,7 +237,6 @@ class MyMatrix {
             long taken = System.currentTimeMillis() - init_assignation;
             System.out.println("Time_assignation = " + taken);
         }
-
     }
 
     public int getValue(int r, int c) {
