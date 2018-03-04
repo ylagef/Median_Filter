@@ -1,5 +1,4 @@
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 
@@ -10,9 +9,7 @@ public class MyProblem {
     static int numThreads, filter;
     public static boolean byCells;
 
-    public static HashMap<Integer, Output> outputs = new HashMap<>(); //Global HashMap with the Output objects.
     public static List<Thread> threadList = new ArrayList<>(numThreads); //ArrayList for the created Threads.
-
 
     public static void main(String[] args) {
         long initTime = System.currentTimeMillis();
@@ -20,6 +17,8 @@ public class MyProblem {
         if (Integer.parseInt(args[1]) == 1) {
             byCells = true;
         }
+
+        System.out.print(numThreads);
 
         int numRows = Integer.parseInt(args[2]);
         int numCols = Integer.parseInt(args[3]);
@@ -44,7 +43,7 @@ public class MyProblem {
             }
         }
 
-        /*
+/*
         //Print final matrix
         for (double[] d : convertedMatrix) {
             for (Double d1 : d) {
@@ -55,10 +54,10 @@ public class MyProblem {
         //Then, this foreach ends when every thread is ended.
 
         System.out.println("\nProgram of exercise 3 has terminated."); //Print final message
-        */
+*/
 
         long endTime = System.currentTimeMillis();
-        System.out.println(endTime - initTime);
+        System.out.print(" " + (endTime - initTime) + "\n");
     }
 }
 
@@ -89,30 +88,9 @@ class MyThread implements Runnable {
             numRows--;
         }
 
-        for (int c = 0; c <= endC; c++) {
+        for (int c = startC; c <= endC; c++) {
             MyProblem.convertedMatrix[endR][c] = (new Cell(endR, c)).getMedianFilter();
         }
-    }
-}
-
-//Class used for storing each Thread timing
-class Output {
-    private long sentInterrupt, interrupted;
-
-    Output(long sentInterrupt) {
-        this.sentInterrupt = sentInterrupt;
-        this.interrupted = 0;
-    }
-
-    public void setInterrupted(long interrupted) {
-        this.interrupted = interrupted;
-    }
-
-    @Override
-    public String toString() {
-        String info = "sentInterrupt: " + sentInterrupt + " - interrupted: " + interrupted;
-        String results = "\n\ts-i: " + (interrupted - sentInterrupt);
-        return info + results;
     }
 }
 
@@ -142,10 +120,7 @@ class MyMatrix {
     }
 
     public void medianFilter() {
-        //System.out.println("- - - - - - - - - - - - - - - - - - - - -\n");
-
         int cellsQuantity = this.getRowsSize() * this.getColsSize();
-
         if (MyProblem.byCells) {
             long init_assignation = System.currentTimeMillis();
             int cellsPerThread;
@@ -159,11 +134,11 @@ class MyMatrix {
 
             //Assigning cells to threads. By blocks.
             int id = 0;
-            int endR = 0, endC, startR = 0, startC = 0;
+            int endR, endC, startR = 0, startC = 0;
             int[][] times = new int[MyProblem.numThreads][4];
 
             while (id != MyProblem.numThreads - 1) { //While not last thread.
-                if (startC + cellsPerThread > getColsSize()) { // If doesnt fit on actual row
+                if (startC + cellsPerThread >= getColsSize()) { // If doesnt fit on actual row
                     int cellsForAssign = cellsPerThread - (getColsSize() - startC);
                     int fullRows = cellsForAssign / getColsSize();
                     cellsForAssign = cellsForAssign - getColsSize() * fullRows;
@@ -174,7 +149,10 @@ class MyMatrix {
                         endC = cellsForAssign - 1;
                         endR = startR + fullRows + 1;
                     }
-                } else endC = startC + cellsPerThread;
+                } else {
+                    endC = startC + cellsPerThread - 1;
+                    endR = startR;
+                }
 
                 times[id][0] = startR;
                 times[id][1] = startC;
@@ -200,14 +178,13 @@ class MyMatrix {
 
             int threadId = 0;
             for (int[] i : times) {
-                System.out.println(threadId + " " + i[0] + "." + i[1] + "|" + i[2] + "." + i[3]);
-                MyProblem.threadList.add(threadId, new Thread(new MyThread(i[0], i[1], i[2], i[3]), Integer.toString(id)));
+                MyProblem.threadList.add(threadId, new Thread(new MyThread(i[0], i[1], i[2], i[3]), Integer.toString(threadId)));
                 MyProblem.threadList.get(threadId++).start();
             }
 
             long taken = System.currentTimeMillis() - init_assignation;
-            System.out.println("Time_assignation = " + taken);
-        } else { // TODO check why is creating 6 threads!?
+            //System.out.println(" " + taken + "\n");
+        } else {
             long init_assignation = System.currentTimeMillis();
 
             int rowsPerThread, usableThreads;
@@ -224,18 +201,17 @@ class MyMatrix {
                 endRow += rowsPerThread;
 
                 if (t == usableThreads - 1) {
-                    System.out.println(id + " " + startRow + "." + 0 + "|" + (getRowsSize() - 1) + "." + (getColsSize() - 1));
                     MyProblem.threadList.add(id, new Thread(new MyThread(startRow, 0, getRowsSize() - 1, getColsSize() - 1), Integer.toString(id)));
                 } else {
-                    System.out.println(id + " " + startRow + "." + 0 + "|" + endRow + "." + (getColsSize() - 1));
                     MyProblem.threadList.add(id, new Thread(new MyThread(startRow, 0, endRow, getColsSize() - 1), Integer.toString(id)));
                 }
+
 
                 MyProblem.threadList.get(id++).start();
                 startRow = endRow + 1;
             }
             long taken = System.currentTimeMillis() - init_assignation;
-            System.out.println("Time_assignation = " + taken);
+            //System.out.print(" " + taken + "\n");
         }
     }
 
